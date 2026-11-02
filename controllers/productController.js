@@ -31,7 +31,6 @@ exports.addProduct = async (req, res) => {
     // Upload images to Cloudinary
     const imageUrls = [];
     for (const file of req.files) {
-      // Cloudinary upload using base64 or buffer (depends on your multer setup)
       const result = await cloudinary.uploader.upload(file.path, {
         folder: 'iroc_parts'
       });
@@ -57,9 +56,44 @@ exports.addProduct = async (req, res) => {
 
 // @desc    Edit a product
 exports.editProduct = async (req, res) => {
-  // We will handle editing logic (including replacing images if new ones are uploaded)
-  // in the next step to keep this focused.
-  res.status(200).json({ message: 'Edit logic coming next' });
+  try {
+    const { name, description, generation, category, originalPrice, salePrice } = req.body;
+    
+    // Find the existing product
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // If new images are uploaded, upload them to Cloudinary. Otherwise, keep the old ones.
+    let imageUrls = product.images;
+    if (req.files && req.files.length > 0) {
+      imageUrls = [];
+      for (const file of req.files) {
+        const result = await cloudinary.uploader.upload(file.path, {
+          folder: 'iroc_parts'
+        });
+        imageUrls.push(result.secure_url);
+      }
+    }
+
+    // Update the product fields
+    product.name = name || product.name;
+    product.description = description || product.description;
+    product.generation = generation || product.generation;
+    product.category = category || product.category;
+    product.originalPrice = originalPrice || product.originalPrice;
+    product.salePrice = salePrice || product.salePrice;
+    product.images = imageUrls;
+
+    // Save to database
+    const updatedProduct = await product.save();
+    res.status(200).json(updatedProduct);
+    
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 // @desc    Delete a product

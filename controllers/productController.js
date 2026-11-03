@@ -28,11 +28,22 @@ exports.addProduct = async (req, res) => {
       return res.status(400).json({ message: 'At least one image is required' });
     }
 
-    // Upload images to Cloudinary
+    // Upload images to Cloudinary using memory buffer
     const imageUrls = [];
     for (const file of req.files) {
-      const result = await cloudinary.uploader.upload(file.path, {
-        folder: 'iroc_parts'
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'fbody_parts' },
+          (error, result) => {
+            if (error) {
+              console.error("CLOUDINARY UPLOAD ERROR:", error);
+              reject(error);
+            } else {
+              resolve(result);
+            }
+          }
+        );
+        stream.end(file.buffer); // Use file.buffer, NOT file.path
       });
       imageUrls.push(result.secure_url);
     }
@@ -44,12 +55,13 @@ exports.addProduct = async (req, res) => {
       category,
       originalPrice,
       salePrice,
-      images: imageUrls // The first image in this array will act as the thumbnail
+      images: imageUrls // The first image in this array acts as the thumbnail
     });
 
     await newProduct.save();
     res.status(201).json(newProduct);
   } catch (error) {
+    console.error("SAVE PRODUCT ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -71,8 +83,19 @@ exports.editProduct = async (req, res) => {
     if (req.files && req.files.length > 0) {
       imageUrls = [];
       for (const file of req.files) {
-        const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'iroc_parts'
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: 'fbody_parts' },
+            (error, result) => {
+              if (error) {
+                console.error("CLOUDINARY EDIT ERROR:", error);
+                reject(error);
+              } else {
+                resolve(result);
+              }
+            }
+          );
+          stream.end(file.buffer); // Use file.buffer, NOT file.path
         });
         imageUrls.push(result.secure_url);
       }
@@ -92,6 +115,7 @@ exports.editProduct = async (req, res) => {
     res.status(200).json(updatedProduct);
     
   } catch (error) {
+    console.error("EDIT PRODUCT ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const nodemailer = require('nodemailer');
 
 // Load env vars FIRST (before importing routes that might need them)
 dotenv.config();
@@ -37,6 +38,45 @@ app.post('/api/login', (req, res) => {
   } else {
     res.status(401).json({ message: 'Invalid credentials' });
   }
+});
+app.post('/api/checkout', async (req, res) => {
+    const { customer, items, total } = req.body;
+
+    // Setup your email transporter (Use an App Password for Gmail, not your real password)
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'fbodyguyparts@gmail.com',
+            pass: process.env.EMAIL_PASS // Add EMAIL_PASS to your Render environment variables
+        }
+    });
+
+    // Construct the email
+    let itemsHtml = items.map(i => `<li>${i.name} - $${i.price}</li>`).join('');
+    
+    const mailOptions = {
+        from: 'fbodyguyparts@gmail.com',
+        to: 'fbodyguyparts@gmail.com',
+        subject: `NEW ORDER from ${customer.name}`,
+        html: `
+            <h2>New Order Received</h2>
+            <p><strong>Customer:</strong> ${customer.name}</p>
+            <p><strong>Email:</strong> ${customer.email}</p>
+            <p><strong>Phone:</strong> ${customer.phone}</p>
+            <p><strong>Address:</strong> ${customer.address}</p>
+            <h3>Items:</h3>
+            <ul>${itemsHtml}</ul>
+            <h3>Total: $${total.toFixed(2)}</h3>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({ message: 'Order placed and email sent' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to send email' });
+    }
 });
 
 // Mount the category and product routes

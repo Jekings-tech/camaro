@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 const nodemailer = require('nodemailer');
 
-// Load env vars FIRST (before importing routes that might need them)
+// Load env vars FIRST
 dotenv.config();
 
 // Import Routes
@@ -15,22 +15,19 @@ const productRoutes = require('./routes/productRoutes');
 const app = express();
 
 // --- MIDDLEWARE ---
-// Allow cross-origin requests (from your frontend dashboard to this backend)
 app.use(cors());
 
 // Parse JSON bodies (for login and standard API requests)
 app.use(express.json());
 
-// Parse URL-encoded bodies (CRITICAL for handling HTML form submissions with files)
-app.use(express.urlencoded({ extended: true }));
+// ❌ REMOVED: app.use(express.urlencoded({ extended: true })); 
+// This was breaking your Multer uploads!
 
-// Serve the uploads folder statically (optional, but good if you want to view temp files)
-// Note: In production, Cloudinary stores the images, so this is just for local dev
+// Serve the uploads folder statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // --- ROUTES ---
-// Hardcoded Simple Login (No database, no JWT complexity)
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   if (username === 'camaro' && password === 'camaro123') {
@@ -39,19 +36,18 @@ app.post('/api/login', (req, res) => {
     res.status(401).json({ message: 'Invalid credentials' });
   }
 });
+
 app.post('/api/checkout', async (req, res) => {
     const { customer, items, total } = req.body;
 
-    // Setup your email transporter (Use an App Password for Gmail, not your real password)
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
             user: 'fbodyguyparts@gmail.com',
-            pass: process.env.EMAIL_PASS // Add EMAIL_PASS to your Render environment variables
+            pass: process.env.EMAIL_PASS
         }
     });
 
-    // Construct the email
     let itemsHtml = items.map(i => `<li>${i.name} - $${i.price}</li>`).join('');
     
     const mailOptions = {
@@ -83,9 +79,8 @@ app.post('/api/checkout', async (req, res) => {
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 
-// Base route for testing if the server is running
 app.get('/', (req, res) => {
-  res.send('IROC Backend API is running...');
+  res.send('F-Body Backend API is running...');
 });
 
 
